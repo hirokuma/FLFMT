@@ -40,7 +40,7 @@ public class FelicaLite {
 	public static final int CKV = 0x0086;
 	public static final int CK = 0x0087;
 	public static final int MC = 0x0088;
-	
+
 	public static final int SIZE_BLOCK = 16;
 
 	private static final String TAG = "FelicaLite";
@@ -51,7 +51,7 @@ public class FelicaLite {
 	 * 使用する場合、最初に呼び出す。
 	 * 内部で{@link NfcF#connect()}を呼び出す。
 	 * 呼び出し場合、最後に{@link FelicaLite#close()}を呼び出すこと。
-	 * 
+	 *
 	 * {@link FelicaLite#close()}が呼ばれるまでtagをキャッシュする。
 	 *
 	 * @param[in]	tag		intentで取得したTag
@@ -60,22 +60,42 @@ public class FelicaLite {
 	 * @see		{@link FelicaLite#close()}
 	 */
 	public static NfcF connect(Tag tag) throws IOException {
+		if (isConnected()) {
+			//connect済み
+			Log.e(TAG, "connect : already connected");
+			return null;
+		}
+
+		//NFC-Fチェック
+		boolean chk = false;
+		String[] techlist = tag.getTechList();
+		for (String tl : techlist) {
+			if (tl.equals(NfcF.class.getName())) {
+				chk = true;
+				break;
+			}
+		}
+		if (!chk) {
+			Log.e(TAG, "connect : not NFC-F");
+			return null;
+		}
+
 		mTag = tag;
 		mNfcF = NfcF.get(tag);
 		mNfcF.connect();
 		return mNfcF;
 	}
 
-	
+
 	/**
 	 * {@link #connect(Tag)}を呼び出したかどうかのチェック
-	 * 
+	 *
 	 * @return	true	呼び出している
 	 */
-	static boolean check() {
+	public static boolean isConnected() {
 		return (mTag != null) && (mNfcF != null);
 	}
-	
+
 
 	/**
 	 * {@link FelicaLite#connect()}を呼び出したら、最後に呼び出すこと。
@@ -94,7 +114,7 @@ public class FelicaLite {
 
 	/**
 	 * ポーリング
-	 * 
+	 *
 	 * {@link FelicaLite#connect()}を呼び出しておくこと。
 	 *
 	 * @param sc			[in]サービスコード
@@ -137,7 +157,7 @@ public class FelicaLite {
 
 	/**
 	 * 1ブロック書込み
-	 * 
+	 *
 	 * {@link FelicaLite#connect()}を呼び出しておくこと。
 	 *
 	 * @param blockNo		[in]書込対象のブロック番号
@@ -288,5 +308,78 @@ public class FelicaLite {
 		byte[] res = new byte[num * SIZE_BLOCK];
 		System.arraycopy(ret, 13, res, 0, num * SIZE_BLOCK);
 		return res;
+	}
+
+
+	/**
+	 * NDEFフォーマット
+	 * <br>
+	 * - {@link FelicaLite#connect()}を呼び出しておくこと。<br>
+	 *
+	 * @return				true:成功 / false:失敗
+	 * @throws IOException
+	 */
+	public static boolean ndefFormat() throws IOException {
+		if (!isConnected()) {
+			Log.e(TAG, "ndefFormat : not connect");
+			return false;
+		}
+
+		//System Code check
+		//本当ならここで0x88b4に対してpolling()したかったのだが、
+		//なぜかシステムエラーが発生してしまう。
+		//よってここでは、Android側はポーリングをブロードキャストしている前提とした。
+		byte[] sc = mNfcF.getSystemCode();
+		if ((sc[0] != (byte)0x88) || (sc[1] != (byte)0xb4)) {
+			Log.e(TAG, "ndefFormat : not FeliCa Lite");
+			return false;
+		}
+
+		boolean ret = false;
+
+		//MC
+		byte[] mc = FelicaLite.readBlock(FelicaLite.MC);
+		if(mc != null) {
+			//System Code chg
+			mc[3] = 0x01;
+
+			ret = FelicaLite.writeBlock(FelicaLite.MC, mc);
+			if (ret) {
+				//Write T3T header
+				final byte[] t3t = new byte[] {
+								0x10,			//Ver
+								0x04,			//Nbr
+								0x01,			//Nbw
+								0x00, 0x0d,		//Nmaxb
+								0x00, 0x00, 0x00, 0x00,
+								0x00,			//WriteF
+								0x01,			//RW
+								0x00, 0x00, 0x00,		//Ln
+								0x00, 0x23,		//Checksum
+				};
+				ret = FelicaLite.writeBlock(FelicaLite.PAD0, t3t);
+				if (ret) {
+					//erase rest bytes
+					byte[] clr = new byte[16];
+					for (int blk = 0; blk < 13; blk++) {
+						//エラーチェックしない
+						FelicaLite.writeBlock(FelicaLite.PAD1 + blk, clr);
+					}
+				} else {
+					Log.e(TAG, "ndefFormat : write Header");
+				}
+
+			} else {
+				Log.e(TAG, "ndefFormat : write MC");
+			}
+		}
+
+		return ret;
+	}
+
+
+	// private constructor
+	private FelicaLite() {
+		throw new AssertionError();
 	}
 }

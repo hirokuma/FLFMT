@@ -168,74 +168,62 @@ public class FullscreenActivity extends Activity {
 	
 	@Override
 	public void onNewIntent(Intent intent) {
+		boolean ret = false;
+		
 		super.onNewIntent(intent);
 		
 		String action = intent.getAction();
 		if (!action.equals(NfcAdapter.ACTION_TECH_DISCOVERED)) {
-			Log.d(TAG, "no tech discovered");
+			Log.d(TAG, "fail : no tech discovered");
 			return;
 		}
 		
 		Tag tag = (Tag)intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
 		if (tag == null) {
-			Log.e(TAG, "no tag");
+			Log.e(TAG, "fail : no tag");
 			return;
+		}
+		if (FelicaLite.isConnected()) {
+			//既に誰かが使ってるけど、捨ててしまえ
+			Log.d(TAG, "disconnect...");
+			try {
+				FelicaLite.close();
+			} catch (IOException e) {
+				Log.e(TAG, "fail : disconnect");
+				return;
+			}
 		}
 		
 		//format
-		boolean ret = false;
 		try {
-			FelicaLite.connect(tag);
+			NfcF nfcf = FelicaLite.connect(tag);
+			if (nfcf != null) {
+				ret = true;
+			} else {
+				Log.e(TAG, "cannot format");
+			}
 			
-			//MC
-			byte[] mc = FelicaLite.readBlock(FelicaLite.MC);
-			if(mc != null) {
-				//System Code chg
-				mc[3] = 0x01;
-				
-				ret = FelicaLite.writeBlock(FelicaLite.MC, mc);
-				if (ret) {
-					//Write T3T header
-					byte[] t3t = new byte[] {
-									0x10,			//Ver
-									0x04,			//Nbr
-									0x01,			//Nbw
-									0x00, 0x0d,		//Nmaxb
-									0x00, 0x00, 0x00, 0x00,
-									0x00,			//WriteF
-									0x01,			//RW
-									0x00, 0x00, 0x00,		//Ln
-									0x00, 0x23,		//Checksum
-					};
-					ret = FelicaLite.writeBlock(FelicaLite.PAD0, t3t);
-					if (ret) {
-						//erase rest bytes
-						byte[] clr = new byte[16];
-						for (int blk = 0; blk < 13; blk++) {
-							FelicaLite.writeBlock(FelicaLite.PAD1 + blk, clr);
-						}
-					} else {
-						Log.e(TAG, "fail : write PAD0");
-					}
-					
-				} else {
-					Log.e(TAG, "fail : write MC");
-				}
+			if (ret) {
+				ret = FelicaLite.ndefFormat();
 			}
 			
 			FelicaLite.close();
 			
-			if (ret) {
-				Toast.makeText(this, "OK", Toast.LENGTH_SHORT).show();
-			} else {
-				Toast.makeText(this, "fail...", Toast.LENGTH_LONG).show();
-			}
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			Log.e(TAG, "fail : format");
+			ret = false;
 		}
+
+		showMessage_(ret);
 	}
 
+	private void showMessage_(boolean ret) {
+		if (ret) {
+			Toast.makeText(this, "OK", Toast.LENGTH_SHORT).show();
+		} else {
+			Toast.makeText(this, "fail...", Toast.LENGTH_LONG).show();
+		}
+	}
 	
 	
 	@Override
