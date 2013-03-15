@@ -2,7 +2,12 @@
 <resources>
 
     <string name="app_name">FLFMT</string>
-    <string name="dummy_button">Dummy Button</string>
-    <string name="dummy_content">FeliCa Lite\nNDEF Formatter</string>
+    <string name="unndef_button">UN NDEF Format</string>
+    <string name="title_activity_unndef">UN NDEF Format</string>
+    <string name="action_settings">Settings</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="unndef_context">FeliCa Lite UnNDEF Formatter</string>
+    <string name="ndef_button">NDEF Format</string>
+    <string name="ndef_content">FeliCa Lite NDEF Formatter</string>
 
 </resources>
