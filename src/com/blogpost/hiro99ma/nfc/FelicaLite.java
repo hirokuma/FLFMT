@@ -4,6 +4,7 @@ import java.io.IOException;
 
 import android.nfc.Tag;
 import android.nfc.tech.NfcF;
+import android.os.RemoteException;
 import android.util.Log;
 
 
@@ -44,23 +45,18 @@ public class FelicaLite {
 	public static final int SIZE_BLOCK = 16;
 
 	private static final String TAG = "FelicaLite";
-	private static Tag mTag;
-	private static NfcF mNfcF;
 
-	/**
-	 * 使用する場合、最初に呼び出す。
-	 * 内部で{@link NfcF#connect()}を呼び出す。
-	 * 呼び出し場合、最後に{@link FelicaLite#close()}を呼び出すこと。
-	 *
-	 * {@link FelicaLite#close()}が呼ばれるまでtagをキャッシュする。
-	 *
-	 * @param[in]	tag		intentで取得したTag
-	 * @return		NfcF
-	 * @throws IOException
-	 * @see		{@link FelicaLite#close()}
-	 */
-	public static NfcF connect(Tag tag) throws IOException {
-		if (isConnected()) {
+	private Tag mTag;
+	private NfcF mNfcF;
+
+
+	private FelicaLite() throws RemoteException {
+		;
+	}
+
+	public static FelicaLite get(Tag tag) throws RemoteException {
+		NfcF nfcf = NfcF.get(tag);
+		if (nfcf.isConnected()) {
 			//connect済み
 			Log.e(TAG, "connect : already connected");
 			return null;
@@ -80,10 +76,30 @@ public class FelicaLite {
 			return null;
 		}
 
-		mTag = tag;
-		mNfcF = NfcF.get(tag);
+		FelicaLite me = new FelicaLite();
+		me.mTag = tag;
+		me.mNfcF = nfcf;
+
+		return me;
+	}
+
+	/**
+	 * 使用する場合、最初に呼び出す。
+	 * 内部で{@link NfcF#connect()}を呼び出す。
+	 * 呼び出し場合、最後に{@link FelicaLite#close()}を呼び出すこと。
+	 *
+	 * {@link FelicaLite#close()}が呼ばれるまでtagをキャッシュする。
+	 *
+	 * @param[in]	tag		intentで取得したTag
+	 * @return		NfcF
+	 * @throws IOException
+	 * @see		{@link FelicaLite#close()}
+	 */
+	public void connect() throws IOException {
+		if (mNfcF == null) {
+			throw new IOException();
+		}
 		mNfcF.connect();
-		return mNfcF;
 	}
 
 
@@ -92,8 +108,11 @@ public class FelicaLite {
 	 *
 	 * @return	true	呼び出している
 	 */
-	public static boolean isConnected() {
-		return (mTag != null) && (mNfcF != null);
+	public boolean isConnected() {
+		if (mNfcF == null) {
+			return false;
+		}
+		return mNfcF.isConnected();
 	}
 
 
@@ -105,15 +124,45 @@ public class FelicaLite {
 	 * @see		{@link FelicaLite#connect(Tag)}
 	 * @note	- {@link FelicaLite#connect(Tag)}でキャッシュしたtagを解放する
 	 */
-	public static void close() throws IOException {
-		mNfcF.close();
+	public void close() throws IOException {
+		if (isConnected()) {
+			mNfcF.close();
+		}
 		mTag = null;
 		mNfcF = null;
 	}
 
+	public byte[] getManufacturer() {
+		return mNfcF.getManufacturer();
+	}
+
+	public int getMaxTransceiveLength() {
+		return mNfcF.getMaxTransceiveLength();
+	}
+
+	public byte[] getSystemCode() {
+		return mNfcF.getSystemCode();
+	}
+
+	public Tag getTag() {
+		return (Tag)mTag;
+	}
+
+	public int getTimeout() {
+		return mNfcF.getTimeout();
+	}
+
+	void setTimeout(int timeout) {
+		mNfcF.setTimeout(timeout);
+	}
+
+	byte[] transceive(byte[] data) throws IOException {
+		return mNfcF.transceive(data);
+	}
+
 
 	/**
-	 * ポーリング
+	 * ポーリング(うまく動いてない？)
 	 *
 	 * {@link FelicaLite#connect()}を呼び出しておくこと。
 	 *
@@ -121,7 +170,7 @@ public class FelicaLite {
 	 * @return				true	ポーリング成功
 	 * @throws IOException
 	 */
-	public static boolean polling(int sc) throws IOException {
+	public boolean polling(int sc) throws IOException {
 		byte[] buf = new byte[6];
 		buf[0] = 6;
 		buf[1] = 0x00;
@@ -165,7 +214,7 @@ public class FelicaLite {
 	 * @return		true	書込成功
 	 * @throws IOException
 	 */
-	public static boolean writeBlock(int blockNo, byte[] data) throws IOException {
+	public boolean writeBlock(int blockNo, byte[] data) throws IOException {
 		if((data == null) || (data.length < 16)) {
 			//データ不正
 			Log.e(TAG, "writeBlock : param");
@@ -216,7 +265,7 @@ public class FelicaLite {
 	 * @return				(!=null)読み込んだ1ブロックデータ / (==null)エラー
 	 * @throws IOException
 	 */
-	public static byte[] readBlock(int blockNo) throws IOException {
+	public byte[] readBlock(int blockNo) throws IOException {
 		byte[] buf = new byte[16];
 		buf[0] = 16;					//length
 		buf[1] = (byte)0x06;			//Read Without Encryption
@@ -264,7 +313,7 @@ public class FelicaLite {
 	 * @return				(!=null)読み込んだブロックデータ(blockNoの順) / (==null)エラー
 	 * @throws IOException
 	 */
-	public static byte[] readBlock(int[] blockNo) throws IOException {
+	public byte[] readBlock(int[] blockNo) throws IOException {
 		int num = blockNo.length;
 		if(num > 4) {
 			//FeliCa Lite limit
@@ -319,7 +368,7 @@ public class FelicaLite {
 	 * @return				true:成功 / false:失敗
 	 * @throws IOException
 	 */
-	public static boolean ndefFormat() throws IOException {
+	public boolean ndefFormat() throws IOException {
 		if (!isConnected()) {
 			Log.e(TAG, "ndefFormat : not connect");
 			return false;
@@ -338,12 +387,12 @@ public class FelicaLite {
 		boolean ret = false;
 
 		//MC
-		byte[] mc = FelicaLite.readBlock(FelicaLite.MC);
+		byte[] mc = readBlock(MC);
 		if(mc != null) {
 			//System Code chg
 			mc[3] = 0x01;
 
-			ret = FelicaLite.writeBlock(FelicaLite.MC, mc);
+			ret = writeBlock(MC, mc);
 			if (ret) {
 				//Write T3T header
 				final byte[] t3t = new byte[] {
@@ -357,13 +406,13 @@ public class FelicaLite {
 								0x00, 0x00, 0x00,		//Ln
 								0x00, 0x23,		//Checksum
 				};
-				ret = FelicaLite.writeBlock(FelicaLite.PAD0, t3t);
+				ret = writeBlock(PAD0, t3t);
 				if (ret) {
 					//erase rest bytes
 					byte[] clr = new byte[16];
 					for (int blk = 0; blk < 13; blk++) {
 						//エラーチェックしない
-						FelicaLite.writeBlock(FelicaLite.PAD1 + blk, clr);
+						writeBlock(PAD1 + blk, clr);
 					}
 				} else {
 					Log.e(TAG, "ndefFormat : write Header");
@@ -372,14 +421,10 @@ public class FelicaLite {
 			} else {
 				Log.e(TAG, "ndefFormat : write MC");
 			}
+		} else {
+			Log.e(TAG, "ndefFormat : read MC");
 		}
 
 		return ret;
-	}
-
-
-	// private constructor
-	private FelicaLite() {
-		throw new AssertionError();
 	}
 }

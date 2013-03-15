@@ -15,6 +15,7 @@ import android.nfc.tech.NfcF;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.RemoteException;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
@@ -25,7 +26,7 @@ import com.blogpost.hiro99ma.nfc.FelicaLite;
 
 /**
  * An example full-screen activity that shows and hides the system UI (i.e. status bar and navigation/system bar) with user interaction.
- * 
+ *
  * @see SystemUiHider
  */
 public class FullscreenActivity extends Activity {
@@ -54,14 +55,14 @@ public class FullscreenActivity extends Activity {
 	 */
 	private SystemUiHider mSystemUiHider;
 
-	
+
     private NfcAdapter mAdapter;
     private PendingIntent mPendingIntent;
     private IntentFilter[] mFilters;
     private String[][] mTechLists;
-    
+
     private final String TAG = "FullActivity";
-    
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -125,9 +126,9 @@ public class FullscreenActivity extends Activity {
 		// operations to prevent the jarring behavior of controls going away
 		// while interacting with the UI.
 		findViewById(R.id.dummy_button).setOnTouchListener(mDelayHideTouchListener);
-		
+
 		//NFC
-		NfcManager mng = (NfcManager)this.getSystemService(Context.NFC_SERVICE); 
+		NfcManager mng = (NfcManager)this.getSystemService(Context.NFC_SERVICE);
 		if (mng == null) {
 			Log.e(TAG, "no NfcManager");
 			return;
@@ -146,7 +147,7 @@ public class FullscreenActivity extends Activity {
 		mFilters = new IntentFilter[] {
 						new IntentFilter(NfcAdapter.ACTION_TECH_DISCOVERED)
 		};
-		
+
 		mTechLists = new String[][] {
 						new String[] { NfcF.class.getName() },
 		};
@@ -157,7 +158,7 @@ public class FullscreenActivity extends Activity {
 		super.onResume();
 		mAdapter.enableForegroundDispatch(this, mPendingIntent, mFilters, mTechLists);
 	}
-	
+
 	@Override
 	public void onPause() {
 		if (this.isFinishing()) {
@@ -165,24 +166,50 @@ public class FullscreenActivity extends Activity {
 		}
 		super.onPause();
 	}
-	
+
 	@Override
 	public void onNewIntent(Intent intent) {
 		boolean ret = false;
-		
+
 		super.onNewIntent(intent);
-		
+
 		String action = intent.getAction();
 		if (!action.equals(NfcAdapter.ACTION_TECH_DISCOVERED)) {
 			Log.d(TAG, "fail : no tech discovered");
 			return;
 		}
-		
+
 		Tag tag = (Tag)intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
 		if (tag == null) {
 			Log.e(TAG, "fail : no tag");
 			return;
 		}
+
+		//format
+		try {
+			FelicaLite felica = FelicaLite.get(tag);
+			if (felica == null) {
+				Log.e(TAG, "fail : no felica lite");
+				return;
+			}
+
+			felica.connect();
+			ret = felica.polling(FelicaLite.SC_FELICALITE);
+			if (!ret) {
+				Log.d(TAG, "polling fail");
+			}
+			ret = felica.ndefFormat();
+			felica.close();
+
+		} catch (IOException e) {
+			Log.e(TAG, "fail : format");
+			ret = false;
+		} catch (RemoteException e) {
+			Log.e(TAG, "fail : felica lite");
+			ret = false;
+		}
+
+/*
 		if (FelicaLite.isConnected()) {
 			//既に誰かが使ってるけど、捨ててしまえ
 			Log.d(TAG, "disconnect...");
@@ -193,7 +220,7 @@ public class FullscreenActivity extends Activity {
 				return;
 			}
 		}
-		
+
 		//format
 		try {
 			NfcF nfcf = FelicaLite.connect(tag);
@@ -202,17 +229,18 @@ public class FullscreenActivity extends Activity {
 			} else {
 				Log.e(TAG, "cannot format");
 			}
-			
+
 			if (ret) {
 				ret = FelicaLite.ndefFormat();
 			}
-			
+
 			FelicaLite.close();
-			
+
 		} catch (IOException e) {
 			Log.e(TAG, "fail : format");
 			ret = false;
 		}
+*/
 
 		showMessage_(ret);
 	}
@@ -224,8 +252,8 @@ public class FullscreenActivity extends Activity {
 			Toast.makeText(this, "fail...", Toast.LENGTH_LONG).show();
 		}
 	}
-	
-	
+
+
 	@Override
 	protected void onPostCreate(Bundle savedInstanceState) {
 		super.onPostCreate(savedInstanceState);
