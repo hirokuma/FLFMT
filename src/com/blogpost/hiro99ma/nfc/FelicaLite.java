@@ -427,4 +427,57 @@ public class FelicaLite {
 
 		return ret;
 	}
+
+
+
+	/**
+	 * NDEFフォーマット
+	 * <br>
+	 * - {@link FelicaLite#connect()}を呼び出しておくこと。<br>
+	 *
+	 * @return				true:成功 / false:失敗
+	 * @throws IOException
+	 */
+	public boolean unndefFormat() throws IOException {
+		if (!isConnected()) {
+			Log.e(TAG, "unndefFormat : not connect");
+			return false;
+		}
+
+		//System Code check
+		//本当ならここで0x88b4に対してpolling()したかったのだが、
+		//なぜかシステムエラーが発生してしまう。
+		//よってここでは、Android側はポーリングをブロードキャストしている前提とした。
+		byte[] sc = mNfcF.getSystemCode();
+		if ((sc[0] != (byte)0x88) || (sc[1] != (byte)0xb4)) {
+			Log.e(TAG, "unndefFormat : not FeliCa Lite");
+			return false;
+		}
+
+		boolean ret = false;
+
+		//MC
+		byte[] mc = readBlock(MC);
+		if(mc != null) {
+			//System Code chg
+			mc[3] = 0x00;
+
+			ret = writeBlock(MC, mc);
+			if (ret) {
+				//erase rest bytes
+				byte[] clr = new byte[16];
+				for (int blk = PAD0; blk <= PAD13; blk++) {
+					//エラーチェックしない
+					writeBlock(blk, clr);
+				}
+
+			} else {
+				Log.e(TAG, "unndefFormat : write MC");
+			}
+		} else {
+			Log.e(TAG, "unndefFormat : read MC");
+		}
+
+		return ret;
+	}
 }

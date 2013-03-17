@@ -1,16 +1,19 @@
 package com.blogpost.hiro99ma.flfmt;
 
-import com.blogpost.hiro99ma.flfmt.util.SystemUiHider;
-
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
+import android.widget.Toast;
+
+import com.blogpost.hiro99ma.flfmt.util.SystemUiHider;
+import com.blogpost.hiro99ma.nfc.NfcFactory;
 
 /**
  * An example full-screen activity that shows and hides the system UI (i.e. status bar and navigation/system bar) with user interaction.
@@ -43,6 +46,9 @@ public class UnndefActivity extends Activity {
 	 */
 	private SystemUiHider mSystemUiHider;
 
+	
+	private final String TAG = "UnndefActivity";
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -91,6 +97,7 @@ public class UnndefActivity extends Activity {
 			}
 		});
 
+		
 		// Set up the user interaction to manually show or hide the system UI.
 		contentView.setOnClickListener(new View.OnClickListener() {
 			@Override
@@ -110,6 +117,46 @@ public class UnndefActivity extends Activity {
 		ndefButton.setOnClickListener(mOnClickNdef);
 	}
 
+
+	@Override
+	public void onResume() {
+		super.onResume();
+		
+		Intent intent = new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+		boolean ret = NfcFactory.NfcResume(this, intent);
+		if(!ret) {
+			Log.e(TAG, "fail : resume");
+			Toast.makeText(this, "No NFC...", Toast.LENGTH_LONG).show();
+			finish();
+		}
+	}
+
+	@Override
+	public void onPause() {
+		NfcFactory.NfcPause(this);
+		super.onPause();
+		
+	}
+
+	@Override
+	public void onNewIntent(Intent intent) {
+		super.onNewIntent(intent);
+		
+		boolean ret = NfcFactory.NfcAction(intent, false);
+
+		showMessage_(ret);
+	}
+
+	private void showMessage_(boolean ret) {
+		if (ret) {
+			Toast.makeText(this, "OK", Toast.LENGTH_SHORT).show();
+		} else {
+			Toast.makeText(this, "fail...", Toast.LENGTH_LONG).show();
+		}
+	}
+
+
+	
 	@Override
 	protected void onPostCreate(Bundle savedInstanceState) {
 		super.onPostCreate(savedInstanceState);
@@ -153,7 +200,7 @@ public class UnndefActivity extends Activity {
 	View.OnClickListener mOnClickNdef = new View.OnClickListener() {
 		@Override
 		public void onClick(View v) {
-			Intent intent = new Intent(UnndefActivity.this, FullscreenActivity.class);
+			Intent intent = new Intent(UnndefActivity.this, NdefActivity.class);
 			startActivity(intent);
 		}
 	};

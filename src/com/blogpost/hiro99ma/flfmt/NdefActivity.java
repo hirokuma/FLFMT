@@ -1,21 +1,11 @@
 package com.blogpost.hiro99ma.flfmt;
 
-import java.io.IOException;
-
 import android.annotation.TargetApi;
 import android.app.Activity;
-import android.app.PendingIntent;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.nfc.NfcAdapter;
-import android.nfc.NfcManager;
-import android.nfc.Tag;
-import android.nfc.tech.NfcF;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.RemoteException;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
@@ -23,14 +13,14 @@ import android.widget.Button;
 import android.widget.Toast;
 
 import com.blogpost.hiro99ma.flfmt.util.SystemUiHider;
-import com.blogpost.hiro99ma.nfc.FelicaLite;
+import com.blogpost.hiro99ma.nfc.NfcFactory;
 
 /**
  * An example full-screen activity that shows and hides the system UI (i.e. status bar and navigation/system bar) with user interaction.
  *
  * @see SystemUiHider
  */
-public class FullscreenActivity extends Activity {
+public class NdefActivity extends Activity {
 	/**
 	 * Whether or not the system UI should be auto-hidden after {@link #AUTO_HIDE_DELAY_MILLIS} milliseconds.
 	 */
@@ -57,18 +47,13 @@ public class FullscreenActivity extends Activity {
 	private SystemUiHider mSystemUiHider;
 
 
-    private NfcAdapter mAdapter;
-    private PendingIntent mPendingIntent;
-    private IntentFilter[] mFilters;
-    private String[][] mTechLists;
-
     private final String TAG = "FullActivity";
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 
-		setContentView(R.layout.activity_fullscreen);
+		setContentView(R.layout.activity_ndef);
 
 		final View controlsView = findViewById(R.id.fullscreen_content_controls);
 		final View contentView = findViewById(R.id.fullscreen_content);
@@ -129,133 +114,33 @@ public class FullscreenActivity extends Activity {
 		// while interacting with the UI.
 		unndefButton.setOnTouchListener(mDelayHideTouchListener);
 		unndefButton.setOnClickListener(mOnClickUnNdef);
-
-		//NFC
-		NfcManager mng = (NfcManager)this.getSystemService(Context.NFC_SERVICE);
-		if (mng == null) {
-			Log.e(TAG, "no NfcManager");
-			return;
-		}
-		mAdapter = mng.getDefaultAdapter();
-		if (mAdapter == null) {
-			Log.e(TAG, "no NfcService");
-			return;
-		}
-		//newがnullを返すことはない
-		mPendingIntent = PendingIntent.getActivity(
-						this,
-						0,		//request code
-						new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
-						0);		//flagなし
-		mFilters = new IntentFilter[] {
-						new IntentFilter(NfcAdapter.ACTION_TECH_DISCOVERED)
-		};
-
-		mTechLists = new String[][] {
-						new String[] { NfcF.class.getName() },
-		};
 	}
 
 	@Override
 	public void onResume() {
 		super.onResume();
-		mAdapter.enableForegroundDispatch(this, mPendingIntent, mFilters, mTechLists);
 		
-		Log.d(TAG, "enableForegroundDispatch");
+		Intent intent = new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+		boolean ret = NfcFactory.NfcResume(this, intent);
+		if(!ret) {
+			Log.e(TAG, "fail : resume");
+			Toast.makeText(this, "No NFC...", Toast.LENGTH_LONG).show();
+			finish();
+		}
 	}
 
 	@Override
 	public void onPause() {
-		//if (this.isFinishing()) {
-			mAdapter.disableForegroundDispatch(this);
-		//}
+		NfcFactory.NfcPause(this);
 		super.onPause();
 		
-		Log.d(TAG, "disableForegroundDispatch");
 	}
 
 	@Override
 	public void onNewIntent(Intent intent) {
-		boolean ret = false;
-
 		super.onNewIntent(intent);
-
-		String action = intent.getAction();
-		if (!action.equals(NfcAdapter.ACTION_TECH_DISCOVERED)) {
-			Log.d(TAG, "fail : no tech discovered");
-			return;
-		}
-
-		Tag tag = (Tag)intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
-		if (tag == null) {
-			Log.e(TAG, "fail : no tag");
-			return;
-		}
-
-		//format
-		FelicaLite felica = null;
-		try {
-			felica = FelicaLite.get(tag);
-			if (felica == null) {
-				Log.e(TAG, "fail : no felica lite");
-				return;
-			}
-
-			felica.connect();
-			ret = felica.polling(FelicaLite.SC_FELICALITE);
-			if (!ret) {
-				Log.d(TAG, "polling fail");
-			}
-			ret = felica.ndefFormat();
-
-		} catch (IOException e) {
-			Log.e(TAG, "fail : format");
-			ret = false;
-		} catch (RemoteException e) {
-			Log.e(TAG, "fail : felica lite");
-			ret = false;
-		}
-		if (felica != null) {
-			try {
-				felica.close();
-			} catch (IOException e) {
-				Log.e(TAG, "fail : close");
-				ret = false;
-			}
-		}
-
-/*
-		if (FelicaLite.isConnected()) {
-			//既に誰かが使ってるけど、捨ててしまえ
-			Log.d(TAG, "disconnect...");
-			try {
-				FelicaLite.close();
-			} catch (IOException e) {
-				Log.e(TAG, "fail : disconnect");
-				return;
-			}
-		}
-
-		//format
-		try {
-			NfcF nfcf = FelicaLite.connect(tag);
-			if (nfcf != null) {
-				ret = true;
-			} else {
-				Log.e(TAG, "cannot format");
-			}
-
-			if (ret) {
-				ret = FelicaLite.ndefFormat();
-			}
-
-			FelicaLite.close();
-
-		} catch (IOException e) {
-			Log.e(TAG, "fail : format");
-			ret = false;
-		}
-*/
+		
+		boolean ret = NfcFactory.NfcAction(intent, true);
 
 		showMessage_(ret);
 	}
@@ -312,7 +197,7 @@ public class FullscreenActivity extends Activity {
 	View.OnClickListener mOnClickUnNdef = new View.OnClickListener() {
 		@Override
 		public void onClick(View v) {
-			Intent intent = new Intent(FullscreenActivity.this, UnndefActivity.class);
+			Intent intent = new Intent(NdefActivity.this, UnndefActivity.class);
 			startActivity(intent);
 		}
 	};
