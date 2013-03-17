@@ -1,7 +1,9 @@
 package com.blogpost.hiro99ma.nfc;
 
 import java.io.IOException;
+import java.util.Arrays;
 
+import android.nfc.NdefMessage;
 import android.nfc.Tag;
 import android.nfc.tech.NfcF;
 import android.os.RemoteException;
@@ -365,26 +367,24 @@ public class FelicaLite {
 	 * <br>
 	 * - {@link FelicaLite#connect()}を呼び出しておくこと。<br>
 	 *
+	 * @param	firstMessage	書き込むNDEFメッセージ
 	 * @return				true:成功 / false:失敗
 	 * @throws IOException
 	 */
-	public boolean ndefFormat() throws IOException {
+	public boolean format(NdefMessage firstMessage) throws IOException {
 		if (!isConnected()) {
-			Log.e(TAG, "ndefFormat : not connect");
+			Log.e(TAG, "format : not connect");
 			return false;
 		}
 
-		//System Code check
-		//本当ならここで0x88b4に対してpolling()したかったのだが、
-		//なぜかシステムエラーが発生してしまう。
-		//よってここでは、Android側はポーリングをブロードキャストしている前提とした。
-		byte[] sc = mNfcF.getSystemCode();
-		if ((sc[0] != (byte)0x88) || (sc[1] != (byte)0xb4)) {
-			Log.e(TAG, "ndefFormat : not FeliCa Lite");
+		//FeliCa Lite check
+		if (!chkFelicaLite()) {
+			Log.e(TAG, "format : not FeliCa Lite");
 			return false;
 		}
 
 		boolean ret = false;
+		byte[] raw_data = null;
 
 		//MC
 		byte[] mc = readBlock(MC);
@@ -395,7 +395,7 @@ public class FelicaLite {
 			ret = writeBlock(MC, mc);
 			if (ret) {
 				//Write T3T header
-				final byte[] t3t = new byte[] {
+				byte[] t3t = new byte[] {
 								0x10,			//Ver
 								0x04,			//Nbr
 								0x01,			//Nbw
@@ -406,23 +406,58 @@ public class FelicaLite {
 								0x00, 0x00, 0x00,		//Ln
 								0x00, 0x23,		//Checksum
 				};
+				if (firstMessage != null) {
+					raw_data = firstMessage.toByteArray();
+					int len = raw_data.length;
+					if (len <= 208) {
+						t3t[0x0d] = (byte)len;
+						int chksum = 0x23 + len;
+						t3t[0x0e] = (byte)(chksum >> 8);
+						t3t[0x0f] = (byte)(chksum & 0xff);
+					} else {
+						Log.w(TAG, "format : too large ndef");
+						raw_data = null;
+					}
+				}
 				ret = writeBlock(PAD0, t3t);
 				if (ret) {
-					//erase rest bytes
+					int blks = 0;
 					byte[] clr = new byte[16];
-					for (int blk = 0; blk < 13; blk++) {
+					
+					if (raw_data != null) {
+						//NDEF初期メッセージ
+						blks = (raw_data.length + 15) % 16;
+						for (int blk = 0; blk < blks; blk++) {
+							int cpylen;
+							if (blk == blks - 1) {
+								//最後
+								cpylen = raw_data.length - blk * 16;
+								Arrays.fill(clr, (byte)0x00);
+							} else {
+								cpylen = 16;
+							}
+							System.arraycopy(raw_data, blk * 16, clr, 0, cpylen);
+							writeBlock(PAD1 + blk, clr);
+						}
+						
+						// zero clear
+						Arrays.fill(clr, (byte)0x00);
+					}
+					
+					//erase rest bytes
+					for (int blk = blks; blk < 13; blk++) {
 						//エラーチェックしない
 						writeBlock(PAD1 + blk, clr);
 					}
 				} else {
-					Log.e(TAG, "ndefFormat : write Header");
+					Log.e(TAG, "format : write Header");
 				}
 
 			} else {
-				Log.e(TAG, "ndefFormat : write MC");
+				Log.e(TAG, "format : write MC");
 			}
 		} else {
-			Log.e(TAG, "ndefFormat : read MC");
+			Log.e(TAG, "format : read MC");
 		}
 
 		return ret;
@@ -431,26 +466,22 @@ public class FelicaLite {
 
 
 	/**
-	 * NDEFフォーマット
-	 * <br>
+	 * 非NDEFフォーマット(1次発行前の場合)<br />
+	 * 
 	 * - {@link FelicaLite#connect()}を呼び出しておくこと。<br>
 	 *
 	 * @return				true:成功 / false:失敗
 	 * @throws IOException
 	 */
-	public boolean unndefFormat() throws IOException {
+	public boolean rawFormat() throws IOException {
 		if (!isConnected()) {
-			Log.e(TAG, "unndefFormat : not connect");
+			Log.e(TAG, "rawFormat : not connect");
 			return false;
 		}
 
-		//System Code check
-		//本当ならここで0x88b4に対してpolling()したかったのだが、
-		//なぜかシステムエラーが発生してしまう。
-		//よってここでは、Android側はポーリングをブロードキャストしている前提とした。
-		byte[] sc = mNfcF.getSystemCode();
-		if ((sc[0] != (byte)0x88) || (sc[1] != (byte)0xb4)) {
-			Log.e(TAG, "unndefFormat : not FeliCa Lite");
+		//FeliCa Lite check
+		if (!chkFelicaLite()) {
+			Log.e(TAG, "rawFormat : not FeliCa Lite");
 			return false;
 		}
 
@@ -472,12 +503,25 @@ public class FelicaLite {
 				}
 
 			} else {
-				Log.e(TAG, "unndefFormat : write MC");
+				Log.e(TAG, "rawFormat : write MC");
 			}
 		} else {
-			Log.e(TAG, "unndefFormat : read MC");
+			Log.e(TAG, "rawFormat : read MC");
 		}
 
 		return ret;
+	}
+	
+	private boolean chkFelicaLite() {
+		//System Code check
+		//本当ならここで0x88b4に対してpolling()したかったのだが、
+		//なぜかシステムエラーが発生してしまう。
+		//よってここでは、Android側はポーリングをブロードキャストしている前提とした。
+		byte[] sc = mNfcF.getSystemCode();
+		if ((sc[0] != (byte)0x88) || (sc[1] != (byte)0xb4)) {
+			return false;
+		}
+		
+		return true;
 	}
 }

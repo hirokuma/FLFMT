@@ -10,6 +10,7 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.blogpost.hiro99ma.flfmt.util.SystemUiHider;
@@ -47,7 +48,7 @@ public class NdefActivity extends Activity {
 	private SystemUiHider mSystemUiHider;
 
 
-    private final String TAG = "FullActivity";
+    private final String TAG = "NdefActivity";
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -120,8 +121,7 @@ public class NdefActivity extends Activity {
 	public void onResume() {
 		super.onResume();
 		
-		Intent intent = new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-		boolean ret = NfcFactory.NfcResume(this, intent);
+		boolean ret = NfcFactory.nfcResume(this);
 		if(!ret) {
 			Log.e(TAG, "fail : resume");
 			Toast.makeText(this, "No NFC...", Toast.LENGTH_LONG).show();
@@ -131,7 +131,7 @@ public class NdefActivity extends Activity {
 
 	@Override
 	public void onPause() {
-		NfcFactory.NfcPause(this);
+		NfcFactory.nfcPause(this);
 		super.onPause();
 		
 	}
@@ -140,19 +140,19 @@ public class NdefActivity extends Activity {
 	public void onNewIntent(Intent intent) {
 		super.onNewIntent(intent);
 		
-		boolean ret = NfcFactory.NfcAction(intent, true);
+		boolean ret = NfcFactory.nfcActionNdefFormat(intent);
+		ImageView iv = (ImageView)findViewById(R.id.image_ikaku);
 
-		showMessage_(ret);
-	}
-
-	private void showMessage_(boolean ret) {
 		if (ret) {
 			Toast.makeText(this, "OK", Toast.LENGTH_SHORT).show();
+			
+			iv.setVisibility(View.INVISIBLE);
 		} else {
 			Toast.makeText(this, "fail...", Toast.LENGTH_LONG).show();
+			
+			iv.setVisibility(View.VISIBLE);
 		}
 	}
-
 
 	@Override
 	protected void onPostCreate(Bundle savedInstanceState) {

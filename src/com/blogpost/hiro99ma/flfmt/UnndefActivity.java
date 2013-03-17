@@ -122,8 +122,7 @@ public class UnndefActivity extends Activity {
 	public void onResume() {
 		super.onResume();
 		
-		Intent intent = new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-		boolean ret = NfcFactory.NfcResume(this, intent);
+		boolean ret = NfcFactory.nfcResume(this);
 		if(!ret) {
 			Log.e(TAG, "fail : resume");
 			Toast.makeText(this, "No NFC...", Toast.LENGTH_LONG).show();
@@ -133,7 +132,7 @@ public class UnndefActivity extends Activity {
 
 	@Override
 	public void onPause() {
-		NfcFactory.NfcPause(this);
+		NfcFactory.nfcPause(this);
 		super.onPause();
 		
 	}
@@ -142,19 +141,14 @@ public class UnndefActivity extends Activity {
 	public void onNewIntent(Intent intent) {
 		super.onNewIntent(intent);
 		
-		boolean ret = NfcFactory.NfcAction(intent, false);
+		boolean ret = NfcFactory.nfcActionRawFormat(intent);
 
-		showMessage_(ret);
-	}
-
-	private void showMessage_(boolean ret) {
 		if (ret) {
 			Toast.makeText(this, "OK", Toast.LENGTH_SHORT).show();
 		} else {
 			Toast.makeText(this, "fail...", Toast.LENGTH_LONG).show();
 		}
 	}
-
 
 	
 	@Override
