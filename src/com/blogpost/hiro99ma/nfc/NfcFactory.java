@@ -48,7 +48,7 @@ public class NfcFactory {
     //空フォーマット用
 	private static final NdefMessage mNdefEmpty = new NdefMessage(new NdefRecord(NdefRecord.TNF_EMPTY, null, null, null));
 
-    
+	
     /**
      * onResume()時の動作
      * 

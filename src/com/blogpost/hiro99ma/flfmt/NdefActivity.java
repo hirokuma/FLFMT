@@ -2,6 +2,8 @@ package com.blogpost.hiro99ma.flfmt;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
@@ -46,12 +48,15 @@ public class NdefActivity extends Activity {
 	 * The instance of the {@link SystemUiHider} for this activity.
 	 */
 	private SystemUiHider mSystemUiHider;
-
+	
+	private AlertDialog.Builder mDlg;
+	private boolean mFormatOK = false;
 
     private final String TAG = "NdefActivity";
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
+		Log.d(TAG, "onCreate");
 		super.onCreate(savedInstanceState);
 
 		setContentView(R.layout.activity_ndef);
@@ -72,6 +77,7 @@ public class NdefActivity extends Activity {
 			@Override
 			@TargetApi(Build.VERSION_CODES.HONEYCOMB_MR2)
 			public void onVisibilityChange(boolean visible) {
+				Log.d(TAG, "setOnVisibilityChangeListener");
 				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB_MR2) {
 					// If the ViewPropertyAnimator API is available
 					// (Honeycomb MR2 and later), use it to animate the
@@ -93,7 +99,13 @@ public class NdefActivity extends Activity {
 
 				if (visible && AUTO_HIDE) {
 					// Schedule a hide().
+					Log.d(TAG, "visible");
 					delayedHide(AUTO_HIDE_DELAY_MILLIS);
+					
+					mFormatOK = true;
+				} else {
+					Log.d(TAG, "invisible");
+					mFormatOK = false;
 				}
 			}
 		});
@@ -115,36 +127,59 @@ public class NdefActivity extends Activity {
 		// while interacting with the UI.
 		unndefButton.setOnTouchListener(mDelayHideTouchListener);
 		unndefButton.setOnClickListener(mOnClickUnNdef);
+
+		mDlg = new AlertDialog.Builder(this);
+		mDlg.setTitle("Success")
+			.setMessage("Format Success")
+			.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+				
+				@Override
+				public void onClick(DialogInterface dialog, int which) {
+					mFormatOK = true;
+				}
+			})
+			.create();
 	}
 
 	@Override
 	public void onResume() {
+		Log.d(TAG, "onResume()");
 		super.onResume();
-		
-		boolean ret = NfcFactory.nfcResume(this);
+
+		Log.d(TAG, "nfcResume");
+		boolean ret = NfcFactory.nfcResume(NdefActivity.this);
 		if(!ret) {
 			Log.e(TAG, "fail : resume");
-			Toast.makeText(this, "No NFC...", Toast.LENGTH_LONG).show();
+			Toast.makeText(NdefActivity.this, "No NFC...", Toast.LENGTH_LONG).show();
 			finish();
 		}
 	}
 
 	@Override
 	public void onPause() {
+		Log.d(TAG, "onPause()");
 		NfcFactory.nfcPause(this);
 		super.onPause();
-		
 	}
+	
 
 	@Override
 	public void onNewIntent(Intent intent) {
+		Log.d(TAG, "onNewIntent");
 		super.onNewIntent(intent);
+		
+		if (!mFormatOK) {
+			//画面にボタンが表示されている間だけ可能
+			Toast.makeText(this, "do nothing", Toast.LENGTH_SHORT).show();
+			return;
+		}
 		
 		boolean ret = NfcFactory.nfcActionNdefFormat(intent);
 		ImageView iv = (ImageView)findViewById(R.id.image_ikaku);
 
 		if (ret) {
-			Toast.makeText(this, "OK", Toast.LENGTH_SHORT).show();
+			mFormatOK = false;
+			mDlg.show();
 			
 			iv.setVisibility(View.INVISIBLE);
 		} else {
@@ -156,6 +191,7 @@ public class NdefActivity extends Activity {
 
 	@Override
 	protected void onPostCreate(Bundle savedInstanceState) {
+		Log.d(TAG, "onPostCreate");
 		super.onPostCreate(savedInstanceState);
 
 		// Trigger the initial hide() shortly after the activity has been
@@ -170,6 +206,7 @@ public class NdefActivity extends Activity {
 	View.OnTouchListener mDelayHideTouchListener = new View.OnTouchListener() {
 		@Override
 		public boolean onTouch(View view, MotionEvent motionEvent) {
+			Log.d(TAG, "onTouch");
 			if (AUTO_HIDE) {
 				delayedHide(AUTO_HIDE_DELAY_MILLIS);
 			}
@@ -182,6 +219,8 @@ public class NdefActivity extends Activity {
 		@Override
 		public void run() {
 			mSystemUiHider.hide();
+
+			Log.d(TAG, "run");
 		}
 	};
 

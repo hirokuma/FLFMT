@@ -2,6 +2,8 @@ package com.blogpost.hiro99ma.flfmt;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
@@ -46,11 +48,14 @@ public class UnndefActivity extends Activity {
 	 */
 	private SystemUiHider mSystemUiHider;
 
-	
+	private AlertDialog.Builder mDlg;
+	private boolean mFormatOK = false;
+
 	private final String TAG = "UnndefActivity";
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
+		Log.d(TAG, "onCreate");
 		super.onCreate(savedInstanceState);
 
 		setContentView(R.layout.activity_unndef);
@@ -92,7 +97,13 @@ public class UnndefActivity extends Activity {
 
 				if (visible && AUTO_HIDE) {
 					// Schedule a hide().
+					Log.d(TAG, "visible");
 					delayedHide(AUTO_HIDE_DELAY_MILLIS);
+					
+					mFormatOK = true;
+				} else {
+					Log.d(TAG, "invisible");
+					mFormatOK = false;
 				}
 			}
 		});
@@ -115,6 +126,18 @@ public class UnndefActivity extends Activity {
 		// while interacting with the UI.
 		ndefButton.setOnTouchListener(mDelayHideTouchListener);
 		ndefButton.setOnClickListener(mOnClickNdef);
+
+		mDlg = new AlertDialog.Builder(this);
+		mDlg.setTitle("Success")
+			.setMessage("Format Success")
+			.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+				
+				@Override
+				public void onClick(DialogInterface dialog, int which) {
+					mFormatOK = true;
+				}
+			})
+			.create();
 	}
 
 
@@ -141,12 +164,19 @@ public class UnndefActivity extends Activity {
 	public void onNewIntent(Intent intent) {
 		super.onNewIntent(intent);
 		
+		if (!mFormatOK) {
+			//画面にボタンが表示されている間だけ可能
+			Toast.makeText(this, "do nothing", Toast.LENGTH_SHORT).show();
+			return;
+		}
+		
 		boolean ret = NfcFactory.nfcActionRawFormat(intent);
 
 		if (ret) {
-			Toast.makeText(this, "OK", Toast.LENGTH_SHORT).show();
+			mFormatOK = false;
+			mDlg.show();
 		} else {
-			Toast.makeText(this, "fail...", Toast.LENGTH_LONG).show();
+			Toast.makeText(this, "fail...", Toast.LENGTH_SHORT).show();
 		}
 	}
 
