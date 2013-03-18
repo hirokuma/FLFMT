@@ -1,7 +1,6 @@
 package com.blogpost.hiro99ma.nfc;
 
 import java.io.IOException;
-import java.util.Arrays;
 
 import android.app.Activity;
 import android.app.PendingIntent;
@@ -274,7 +273,7 @@ public class NfcFactory {
 			ret = felicaLiteFormat(tag, false);
 		} else if (MifareUltralight.get(tag) != null) {
 			//こいつ、MIFARE Ultralightだ
-			ret = mifareUlFormat(tag);
+			ret = mifareUlRawFormat(tag);
 		} else {
 			Log.e(TAG, "お前など知らぬ");
 			ret = false;
@@ -283,7 +282,15 @@ public class NfcFactory {
 		return ret;
 	}
 	
-	private static boolean mifareUlFormat(Tag tag) {
+	
+	/**
+	 * MIFARE Ultralightを空NDEFフォーマットする。<br />
+	 * OTPにNDEF値が入ると、AndroidでNdefFormatable#format()が失敗することがあるため、空NDEF TLVを作っている。
+	 * 
+	 * @param tag		MifareUltralight
+	 * @return			true:処理成功 / false:処理失敗
+	 */
+	private static boolean mifareUlRawFormat(Tag tag) {
 		boolean ret = false;
 		MifareUltralight mifare = MifareUltralight.get(tag);
 		try {
@@ -291,21 +298,15 @@ public class NfcFactory {
 			
 			byte[] clr = new byte[4];
 			
-			clr[0] = (byte)0x01;
-			clr[1] = (byte)0x03;
-			clr[2] = (byte)0xa0;
-			clr[3] = (byte)0x10;
+			clr[0] = (byte)0x03;		//TLV:NDEF
+			clr[1] = (byte)0x00;		//length
+			clr[2] = (byte)0xfe;		//TLV:Terminator
 			mifare.writePage(4, clr);
 			
-			clr[0] = (byte)0x44;
-			clr[1] = 0x03;
-			clr[2] = 0x00;
-			clr[3] = (byte)0xfe;
-			mifare.writePage(5, clr);
-			
 			clr[0] = 0x00;
-			clr[3] = 0x00;
-			for (int blk = 6; blk < 16; blk++) {
+			clr[2] = 0x00;
+
+			for (int blk = 5; blk < 16; blk++) {
 				mifare.writePage(blk, clr);
 			}
 			
@@ -323,7 +324,7 @@ public class NfcFactory {
 					mifare.writePage(blk, clr);
 				}
 			} catch (IOException e) {
-				Log.e(TAG, "mifareUlFormat : ioexception");
+				Log.e(TAG, "mifareUlFormat : ioexception(don't worry)");
 			}
 				
 			try {
