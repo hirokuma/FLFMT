@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest package="com.blogpost.hiro99ma.flfmt"
     android:versionCode="1"
-    android:versionName="1.0" xmlns:android="http://schemas.android.com/apk/res/android">
+    android:versionName="1.0.0" xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-sdk
         android:minSdkVersion="17"
-        android:targetSdkVersion="17" />
+        android:targetSdkVersion="21" />
 
     <uses-feature
         android:name="android.hardware.nfc"

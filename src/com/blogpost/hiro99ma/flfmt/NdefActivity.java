@@ -129,9 +129,9 @@ public class NdefActivity extends Activity {
 		unndefButton.setOnClickListener(mOnClickUnNdef);
 
 		mDlg = new AlertDialog.Builder(this);
-		mDlg.setTitle("Success")
-			.setMessage("Format Success")
-			.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+		mDlg.setTitle(R.string.format_success_title)
+			.setMessage(R.string.format_success)
+			.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
 				
 				@Override
 				public void onClick(DialogInterface dialog, int which) {
@@ -170,7 +170,7 @@ public class NdefActivity extends Activity {
 		
 		if (!mFormatOK) {
 			//画面にボタンが表示されている間だけ可能
-			Toast.makeText(this, "do nothing", Toast.LENGTH_SHORT).show();
+			Toast.makeText(this, R.string.explain_format, Toast.LENGTH_SHORT).show();
 			return;
 		}
 		
@@ -183,7 +183,7 @@ public class NdefActivity extends Activity {
 			
 			iv.setVisibility(View.INVISIBLE);
 		} else {
-			Toast.makeText(this, "fail...", Toast.LENGTH_LONG).show();
+			Toast.makeText(this, R.string.format_fail, Toast.LENGTH_LONG).show();
 			
 			iv.setVisibility(View.VISIBLE);
 		}

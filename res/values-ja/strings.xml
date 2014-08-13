@@ -8,9 +8,7 @@
     <string name="title_activity_ndef">NDEF Format</string>
     <string name="ndef_button">NDEF Format</string>
     <string name="ndef_content">NDEF Formatter</string>
-    <string name="explain_format">During showing button, you can format tag.</string>
-    <string name="format_success_title">Success</string>
-    <string name="format_success">Format success</string>
-    <string name="format_fail">Format fail...</string>
+    <string name="explain_format">ボタンが表示されている間だけ、フォーマットできます</string>
+    <string name="format_success">フォーマット成功</string>
     
 </resources>
