@@ -1,12 +1,8 @@
 package com.blogpost.hiro99ma.flfmt;
 
-import java.util.Timer;
-
 import android.annotation.TargetApi;
 import android.app.Activity;
-import android.app.AlarmManager;
 import android.app.AlertDialog;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
@@ -15,7 +11,6 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
-import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.blogpost.hiro99ma.flfmt.util.SystemUiHider;
@@ -41,12 +36,25 @@ public class NdefActivity extends Activity {
 	 * The instance of the {@link SystemUiHider} for this activity.
 	 */
 	private SystemUiHider mSystemUiHider;
+
+	private static boolean mNoticed = false;
 	
-	private AlarmManager mAlarmManager;
-	
-	private AlertDialog.Builder mSuccessDlg;
-	private AlertDialog.Builder mFailDlg;
+	//フォーマット可能なタイミングかどうか
 	private boolean mFormatOK = false;
+
+	//ダイアログ
+	private AlertDialog mSuccessDlg;
+	private AlertDialog mFailDlg;
+
+	//時差でダイアログを消したい
+	private Handler mCloseHanlder = new Handler();
+	private Runnable mCloseRunnable = new Runnable() {
+		@Override
+		public void run() {
+			mSuccessDlg.dismiss();
+		}
+	};
+	private static final int DIALOG_CLOSE_DELAY_MILLIS = 500;
 
     private final String TAG = "NdefActivity";
 
@@ -121,17 +129,19 @@ public class NdefActivity extends Activity {
 
 		mSuccessDlg = new AlertDialog.Builder(this)
 				.setTitle(R.string.format_success_title)
-				.setMessage(R.string.format_success)
-				.setPositiveButton(android.R.string.ok, null);
-
+				.setMessage(R.string.format_success).create();
 		mFailDlg = new AlertDialog.Builder(this)
 				.setTitle(R.string.format_fail_title)
 				.setMessage(R.string.format_fail)
-				.setPositiveButton(android.R.string.ok, null);
+				.setPositiveButton(android.R.string.ok, null).create();
+
 		
-		new AlertDialog.Builder(this).setTitle(R.string.notice_title)
-			.setMessage(R.string.notice)
-			.setPositiveButton(android.R.string.ok, null).show();
+		if (!mNoticed) {
+			mNoticed = true;
+			new AlertDialog.Builder(this).setTitle(R.string.notice_title)
+				.setMessage(R.string.notice)
+				.setPositiveButton(android.R.string.ok, null).show();
+		}
 	}
 
 	
@@ -174,20 +184,18 @@ public class NdefActivity extends Activity {
 		}
 		
 		boolean ret = NfcFactory.nfcActionNdefFormat(intent);
-		ImageView iv = (ImageView)findViewById(R.id.image_ikaku);
 
 		if (ret) {
-			mFormatOK = false;
-			//Toast.makeText(this, R.string.format_success, Toast.LENGTH_LONG).show();
 			mSuccessDlg.show();
+			mCloseHanlder.postDelayed(mCloseRunnable, DIALOG_CLOSE_DELAY_MILLIS);
 			
-			iv.setVisibility(View.INVISIBLE);
+			//延長
+			delayedHide(AUTO_HIDE_DELAY_MILLIS);
 		} else {
 			mFailDlg.show();
-			
-			iv.setVisibility(View.VISIBLE);
 		}
 	}
+
 
 	
 	@Override
@@ -210,6 +218,7 @@ public class NdefActivity extends Activity {
 		public boolean onTouch(View view, MotionEvent motionEvent) {
 			Log.d(TAG, "onTouch");
 			delayedHide(AUTO_HIDE_DELAY_MILLIS);
+			view.performClick();
 			return false;
 		}
 	};

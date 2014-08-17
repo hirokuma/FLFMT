@@ -21,8 +21,9 @@
         <activity
             android:name="com.blogpost.hiro99ma.flfmt.NdefActivity"
             android:configChanges="orientation|keyboardHidden|screenSize"
-            android:label="@string/title_activity_ndef"
-            android:theme="@style/FullscreenTheme" android:launchMode="standard" android:noHistory="true">
+            android:theme="@style/FullscreenTheme"
+            android:launchMode="standard"
+            android:noHistory="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -30,7 +31,10 @@
         </activity>
         <activity
             android:name="com.blogpost.hiro99ma.flfmt.UnndefActivity"
-            android:label="@string/title_activity_unndef" android:launchMode="standard" android:configChanges="orientation|keyboardHidden|screenSize" android:noHistory="true">
+            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:theme="@style/FullscreenTheme"
+            android:launchMode="standard"
+            android:noHistory="true">
         </activity>
     </application>
 

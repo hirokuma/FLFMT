@@ -3,7 +3,6 @@ package com.blogpost.hiro99ma.flfmt;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
@@ -38,10 +37,24 @@ public class UnndefActivity extends Activity {
 	 */
 	private SystemUiHider mSystemUiHider;
 
-	private AlertDialog.Builder mSuccessDlg;
-	private AlertDialog.Builder mFailDlg;
+	//フォーマット可能なタイミングかどうか
 	private boolean mFormatOK = false;
 
+	//ダイアログ
+	private AlertDialog mSuccessDlg;
+	private AlertDialog mFailDlg;
+
+	//時差でダイアログを消したい
+	private Handler mCloseHanlder = new Handler();
+	private Runnable mCloseRunnable = new Runnable() {
+		@Override
+		public void run() {
+			mSuccessDlg.dismiss();
+		}
+	};
+	private static final int DIALOG_CLOSE_DELAY_MILLIS = 500;
+
+ 
 	private final String TAG = "UnndefActivity";
 	
 	@Override
@@ -113,18 +126,14 @@ public class UnndefActivity extends Activity {
 		// while interacting with the UI.
 		ndefButton.setOnTouchListener(mDelayHideTouchListener);
 		ndefButton.setOnClickListener(mOnClickNdef);
-
-		mFailDlg = new AlertDialog.Builder(this);
-		mFailDlg.setTitle(R.string.format_fail_title)
-			.setMessage(R.string.format_fail)
-			.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-				
-				@Override
-				public void onClick(DialogInterface dialog, int which) {
-					mFormatOK = true;
-				}
-			})
-			.create();
+		
+		mSuccessDlg = new AlertDialog.Builder(this)
+				.setTitle(R.string.format_success_title)
+				.setMessage(R.string.format_success).create();
+		mFailDlg = new AlertDialog.Builder(this)
+				.setTitle(R.string.format_fail_title)
+				.setMessage(R.string.format_fail)
+				.setPositiveButton(android.R.string.ok, null).create();
 	}
 
 
@@ -161,18 +170,17 @@ public class UnndefActivity extends Activity {
 		boolean ret = NfcFactory.nfcActionRawFormat(intent);
 
 		if (ret) {
-			mFormatOK = false;
-			//Toast.makeText(this, R.string.format_success, Toast.LENGTH_SHORT).show();
-			mSuccessDlg = new AlertDialog.Builder(this).setTitle(R.string.format_success_title)
-					.setMessage(R.string.format_success)
-					.setPositiveButton(android.R.string.ok, null);
 			mSuccessDlg.show();
+			mCloseHanlder.postDelayed(mCloseRunnable, DIALOG_CLOSE_DELAY_MILLIS);
+
+			//延長
+			delayedHide(AUTO_HIDE_DELAY_MILLIS);
 		} else {
 			mFailDlg.show();
 		}
 	}
 
-	
+
 	@Override
 	protected void onPostCreate(Bundle savedInstanceState) {
 		super.onPostCreate(savedInstanceState);
@@ -191,11 +199,11 @@ public class UnndefActivity extends Activity {
 		@Override
 		public boolean onTouch(View view, MotionEvent motionEvent) {
 			delayedHide(AUTO_HIDE_DELAY_MILLIS);
+			view.performClick();
 			return false;
 		}
 	};
 
-	
 	Handler mHideHandler = new Handler();
 	Runnable mHideRunnable = new Runnable() {
 		@Override
