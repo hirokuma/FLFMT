@@ -3,6 +3,7 @@ package com.blogpost.hiro99ma.nfc;
 import java.io.IOException;
 
 import android.app.Activity;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -38,11 +39,11 @@ public class NfcFactory {
 		new IntentFilter(NfcAdapter.ACTION_TECH_DISCOVERED)
 	};
     
-//    private final static String[][] mTechLists = new String[][] {
-//    	new String[] { Ndef.class.getName() },
-//    	new String[] { NdefFormatable.class.getName() },
-//		new String[] { NfcF.class.getName() },
-//    };
+    private final static String[][] mTechLists = new String[][] {
+    	new String[] { Ndef.class.getName() },
+    	new String[] { NdefFormatable.class.getName() },
+		new String[] { NfcF.class.getName() },
+    };
 
     //空フォーマット用
 	private static final NdefMessage mNdefEmpty = new NdefMessage(new NdefRecord(NdefRecord.TNF_EMPTY, null, null, null));
@@ -57,26 +58,26 @@ public class NfcFactory {
      */
 	public static boolean nfcResume(Activity activity) {
 		//NFC
-//		NfcManager mng = (NfcManager)activity.getSystemService(Context.NFC_SERVICE);
-//		if (mng == null) {
-//			Log.e(TAG, "no NfcManager");
-//			return false;
-//		}
-//		NfcAdapter adapter = mng.getDefaultAdapter();
-//		if (adapter == null) {
-//			Log.e(TAG, "no NfcService");
-//			return false;
-//		}
-//		
-//		//newがnullを返すことはない
-//		Intent intent = new Intent(activity, activity.getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-//		PendingIntent pendingIntent = PendingIntent.getActivity(
-//						activity,
-//						0,		//request code
-//						intent,
-//						0);		//flagなし
-//		
-//		adapter.enableForegroundDispatch(activity, pendingIntent, mFilters, mTechLists);
+		NfcManager mng = (NfcManager)activity.getSystemService(Context.NFC_SERVICE);
+		if (mng == null) {
+			Log.e(TAG, "no NfcManager");
+			return false;
+		}
+		NfcAdapter adapter = mng.getDefaultAdapter();
+		if (adapter == null) {
+			Log.e(TAG, "no NfcService");
+			return false;
+		}
+		
+		//newがnullを返すことはない
+		Intent intent = new Intent(activity, activity.getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+		PendingIntent pendingIntent = PendingIntent.getActivity(
+						activity,
+						0,		//request code
+						intent,
+						0);		//flagなし
+		
+		adapter.enableForegroundDispatch(activity, pendingIntent, mFilters, mTechLists);
 		
 		return true;
 	}
