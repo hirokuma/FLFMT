@@ -1,7 +1,10 @@
 package com.blogpost.hiro99ma.flfmt;
 
+import java.util.Timer;
+
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.app.AlarmManager;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -25,19 +28,9 @@ import com.blogpost.hiro99ma.nfc.NfcFactory;
  */
 public class NdefActivity extends Activity {
 	/**
-	 * Whether or not the system UI should be auto-hidden after {@link #AUTO_HIDE_DELAY_MILLIS} milliseconds.
-	 */
-	private static final boolean AUTO_HIDE = true;
-
-	/**
 	 * If {@link #AUTO_HIDE} is set, the number of milliseconds to wait after user interaction before hiding the system UI.
 	 */
 	private static final int AUTO_HIDE_DELAY_MILLIS = 3000;
-
-	/**
-	 * If set, will toggle the system UI visibility upon interaction. Otherwise, will show the system UI visibility upon interaction.
-	 */
-	private static final boolean TOGGLE_ON_CLICK = true;
 
 	/**
 	 * The flags to pass to {@link SystemUiHider#getInstance}.
@@ -49,7 +42,10 @@ public class NdefActivity extends Activity {
 	 */
 	private SystemUiHider mSystemUiHider;
 	
-	private AlertDialog.Builder mDlg;
+	private AlarmManager mAlarmManager;
+	
+	private AlertDialog.Builder mSuccessDlg;
+	private AlertDialog.Builder mFailDlg;
 	private boolean mFormatOK = false;
 
     private final String TAG = "NdefActivity";
@@ -97,12 +93,11 @@ public class NdefActivity extends Activity {
 					controlsView.setVisibility(visible ? View.VISIBLE : View.GONE);
 				}
 
-				if (visible && AUTO_HIDE) {
+				if (visible) {
 					// Schedule a hide().
 					Log.d(TAG, "visible");
-					delayedHide(AUTO_HIDE_DELAY_MILLIS);
-					
 					mFormatOK = true;
+					delayedHide(AUTO_HIDE_DELAY_MILLIS);
 				} else {
 					Log.d(TAG, "invisible");
 					mFormatOK = false;
@@ -114,11 +109,7 @@ public class NdefActivity extends Activity {
 		contentView.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View view) {
-				if (TOGGLE_ON_CLICK) {
-					mSystemUiHider.toggle();
-				} else {
-					mSystemUiHider.show();
-				}
+				mSystemUiHider.toggle();
 			}
 		});
 
@@ -128,36 +119,44 @@ public class NdefActivity extends Activity {
 		unndefButton.setOnTouchListener(mDelayHideTouchListener);
 		unndefButton.setOnClickListener(mOnClickUnNdef);
 
-		mDlg = new AlertDialog.Builder(this);
-		mDlg.setTitle(R.string.format_success_title)
-			.setMessage(R.string.format_success)
-			.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-				
-				@Override
-				public void onClick(DialogInterface dialog, int which) {
-					mFormatOK = true;
-				}
-			})
-			.create();
+		mSuccessDlg = new AlertDialog.Builder(this)
+				.setTitle(R.string.format_success_title)
+				.setMessage(R.string.format_success)
+				.setPositiveButton(android.R.string.ok, null);
+
+		mFailDlg = new AlertDialog.Builder(this)
+				.setTitle(R.string.format_fail_title)
+				.setMessage(R.string.format_fail)
+				.setPositiveButton(android.R.string.ok, null);
+		
+		new AlertDialog.Builder(this).setTitle(R.string.notice_title)
+			.setMessage(R.string.notice)
+			.setPositiveButton(android.R.string.ok, null).show();
 	}
 
+	
 	@Override
 	public void onResume() {
 		Log.d(TAG, "onResume()");
 		super.onResume();
 
-		Log.d(TAG, "nfcResume");
 		boolean ret = NfcFactory.nfcResume(NdefActivity.this);
 		if(!ret) {
 			Log.e(TAG, "fail : resume");
-			Toast.makeText(NdefActivity.this, "No NFC...", Toast.LENGTH_LONG).show();
+			Toast.makeText(NdefActivity.this, R.string.cannot_nfc, Toast.LENGTH_LONG).show();
 			finish();
 		}
 	}
 
+	
+	/*
+	 * タップしたとき、なぜonPause()が呼ばれるのだろう？
+	 * @see android.app.Activity#onPause()
+	 */
 	@Override
 	public void onPause() {
 		Log.d(TAG, "onPause()");
+		//mFormatOK = false;
 		NfcFactory.nfcPause(this);
 		super.onPause();
 	}
@@ -179,16 +178,18 @@ public class NdefActivity extends Activity {
 
 		if (ret) {
 			mFormatOK = false;
-			mDlg.show();
+			//Toast.makeText(this, R.string.format_success, Toast.LENGTH_LONG).show();
+			mSuccessDlg.show();
 			
 			iv.setVisibility(View.INVISIBLE);
 		} else {
-			Toast.makeText(this, R.string.format_fail, Toast.LENGTH_LONG).show();
+			mFailDlg.show();
 			
 			iv.setVisibility(View.VISIBLE);
 		}
 	}
 
+	
 	@Override
 	protected void onPostCreate(Bundle savedInstanceState) {
 		Log.d(TAG, "onPostCreate");
@@ -200,6 +201,7 @@ public class NdefActivity extends Activity {
 		delayedHide(100);
 	}
 
+	
 	/**
 	 * Touch listener to use for in-layout UI controls to delay hiding the system UI. This is to prevent the jarring behavior of controls going away while interacting with activity UI.
 	 */
@@ -207,20 +209,18 @@ public class NdefActivity extends Activity {
 		@Override
 		public boolean onTouch(View view, MotionEvent motionEvent) {
 			Log.d(TAG, "onTouch");
-			if (AUTO_HIDE) {
-				delayedHide(AUTO_HIDE_DELAY_MILLIS);
-			}
+			delayedHide(AUTO_HIDE_DELAY_MILLIS);
 			return false;
 		}
 	};
 
+	
 	Handler mHideHandler = new Handler();
 	Runnable mHideRunnable = new Runnable() {
 		@Override
 		public void run() {
-			mSystemUiHider.hide();
-
 			Log.d(TAG, "run");
+			mSystemUiHider.hide();
 		}
 	};
 
@@ -233,6 +233,8 @@ public class NdefActivity extends Activity {
 	}
 	
 	//UN NDEFボタン
+	//
+	//  わざわざActivityを切り替えているのは、単なる練習のため
 	View.OnClickListener mOnClickUnNdef = new View.OnClickListener() {
 		@Override
 		public void onClick(View v) {

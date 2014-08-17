@@ -2,15 +2,19 @@
 <resources>
 
     <string name="app_name">NFC Formatter</string>
+    <string name="cannot_nfc">Cannot use NFC</string>
     <string name="title_activity_unndef">UnNDEF Format</string>
-    <string name="unndef_button">UnNDEF Format</string>
+    <string name="unndef_button">change UnNDEF format mode</string>
     <string name="unndef_context">UnNDEF Formatter</string>
     <string name="title_activity_ndef">NDEF Format</string>
-    <string name="ndef_button">NDEF Format</string>
+    <string name="ndef_button">change NDEF format mode</string>
     <string name="ndef_content">NDEF Formatter</string>
-    <string name="explain_format">During showing button, you can format tag.</string>
+    <string name="explain_format">During showing footer, you can format tag.</string>
     <string name="format_success_title">Success</string>
     <string name="format_success">Format success</string>
-    <string name="format_fail">Format fail...</string>
+    <string name="format_fail_title">Fail</string>
+    <string name="format_fail">Format fail</string>
+    <string name="notice_title">NOTICE</string>
+    <string name="notice">This application formats NFC tag WITHOUT ALERT.</string>
     
 </resources>
